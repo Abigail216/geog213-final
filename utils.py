@@ -1,61 +1,54 @@
-import rioxarray as rxr
-
 from pystac_client import Client
-__all__ = ['FindBoxScene','gen_stac_asset_urls', 'reproject_and_mosaic']
+import matplotlib.pyplot as plt
 
-def FindBoxScene(datetime, bbox):
+__all__ = ['search_api']
+
+def search_api(datetime, point)
     catalog = Client.open("https://earth-search.aws.element84.com/v1")
-    
+        
     search = catalog.search(
         collections=["sentinel-2-l2a"],
-        bbox=bbox,
-        datetime=datetime, 
-        query=["eo:cloud_cover<5", "s2:snow_ice_percentage<5"]
-    )
+        intersects=point,
+        datetime=datetime,
+        query=["eo:cloud_cover<5", "s2: snow_and_ice_percentage<5"
+        )
 
-    items = search.get_all_items()
-    print(len(items))
-    
-    return items
+    return search.matched()
 
 
 def gen_stac_asset_urls(items, asset):
     """
     This function receives an items collection returned by a STAC API, and returns
     the urls of the requested `asset` in a list. 
+
+    Inputs:
+        items : json collection
+            A STAC items collection returned by STAC API
+        asset : string
+            Name of an asset present in the `items` collection
+
+    Returns:
+        urls : list
+            List of all usls related to the `asset`
+            
     """
+    
     urls = []
     for item in items:
         urls.append(item.assets[asset].href)
+    
     return urls
 
+def gen_map(band1, band2, selected_pre_image, selected_post_image):
+    assets_pre = selected_pre_image.assets
+    assets_post = selected_post_image.assets
+    
+    nir_pre_href = assets_pre[band1].href
+    print(nir_pre_href)
 
+    swir_pre_href = assets_pre[band2].href
+    print(swir_pre_href)
 
-def reproject_and_mosaic(items, band_name, epsg=5070):
-   """
-   Reproject and mosaic Sentinel-2 tiles for a given time period
-   
-   Parameters:
-   items : list of STAC items from FindBoxScene
-   band_name : str ('red', 'green', or 'blue')
-   epsg : int (default 5070 to match CDL data)
-   
-   Returns:
-   mosaic : reprojected and mosaicked raster
-   """
-   # Get URLs for the band
-   urls = gen_stac_asset_urls(items, band_name)
-   
-   # Create reprojected datasets
-   datasets = []
-   for url in urls:
-       ds = rxr.open_rasterio(url, lock=False, chunks=(1, 'auto', -1))
-       ds_reprojected = ds.rio.reproject(f'EPSG:{epsg}')
-       datasets.append(ds_reprojected.to_dataset(name=band_name))
-   
-   # Create mosaic
-   mosaic = merge_datasets(datasets)
-   
-   return mosaic
-
-
+    nir = rxr.open_rasterio(nir_pre_href)
+    plt.imshow(nir[0,:,:], cmap="magma_r")
+    
